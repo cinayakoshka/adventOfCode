@@ -1,6 +1,8 @@
 package com.aoc
 
-import scala.collection.{mutable => m}
+import com.aoc.Day3.Wire
+
+import scala.collection.{ mutable => m}
 
 object Direction {
   val directions = Set(Up, Down, Left, Right)
@@ -42,6 +44,10 @@ object Point {
   }
 }
 
+object Day3 {
+  type Wire = Seq[String]
+}
+
 class Day3(rawWires: Seq[Seq[String]]) {
   lazy val grid: m.Map[Point, Set[Int]] = new m.HashMap()
   val wires: Seq[Seq[Step]] = rawWires.map(_.map(Direction.parse))
@@ -61,9 +67,7 @@ class Day3(rawWires: Seq[Seq[String]]) {
 
   def addWire(label: Int, wire: Seq[Step]): Unit =
     wire.foldLeft(Point()) { (acc: Point, step: Step) =>
-      //println(s"calculating steps from $acc to $step")
       val steps = acc.stepTo(step)
-      //println(s"last step is ${steps.last}")
       steps.foreach { p =>
         addPoint(label, p)
       }
@@ -75,4 +79,52 @@ class Day3(rawWires: Seq[Seq[String]]) {
     grid(p) = existing + label
   }
 
+}
+
+object Day3Part2 {
+  case class Visit(label: Int = 0, steps: Int = 0)
+}
+
+class Day3Part2(rawWires: Seq[Wire]) {
+  import Day3Part2._
+
+  lazy val grid: m.Map[Point, Set[Visit]] = new m.HashMap()
+
+  val wires: Seq[Seq[Step]] = rawWires.map(_.map(Direction.parse))
+  wires.zipWithIndex.map { case (w, i) => addWire(i, w) }
+
+  def getManhattanDistance(p: Point): Int = Math.abs(p.x) + Math.abs(p.y)
+
+  def closestIntersection = findNearestIntersection()._2.map(_.steps).sum
+
+  def findNearestIntersection(): (Point, Set[Visit]) = {
+    val possibles = grid.filter { case (p, ws) => ws.size == wires.length  && p != Point(0, 0)}
+      if (possibles.nonEmpty) {
+        possibles.minBy(_._2.map(_.steps).sum)
+      } else throw new IllegalStateException("no intersection to find.")
+  }
+
+  def addWire(label: Int, wire: Seq[Step]): Unit = {
+    wire.foldLeft((Point(), 0)) { (acc: (Point, Int), step: Step) => {
+      val steps = acc._1.stepTo(step)
+      val marks = acc._2 to acc._2 + steps.length
+      val zipped = steps.zip(marks)
+      zipped.foreach {
+        case (point, i) => addPoint(label, point, i)
+      }
+      zipped.last
+    }
+    }
+  }
+
+  def addPoint(label: Int, p: Point, steps: Int): Unit = {
+    val existing: Option[Set[Visit]] = grid.get(p)
+    if (existing.isEmpty) {
+      grid(p) = Set(Visit(label, steps))
+    } else existing.foreach { visits =>
+        if (!visits.exists(_.label == label)) {
+          grid(p) = visits + Visit(label, steps)
+        }
+      }
+  }
 }
