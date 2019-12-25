@@ -6,7 +6,13 @@ import scala.collection.{mutable => m}
 object IntCodeReader {
   type IntCode = m.ArraySeq[Int]
   // intermediate result, initializes to ret = 1
-  case class State(input: Int = 1, place: Option[Int] = Some(0))
+  case class State(inputs: m.Queue[Int], place: Option[Int]) {
+    def withPlace(p: Option[Int]) = State(inputs, p)
+  }
+  object State {
+    def apply(input: Int = 1, place: Option[Int] = Some(0)): State =
+      State(m.Queue(input), place)
+  }
   def read(codes: Seq[Int]): IntCode = new IntCodeReader(codes).readToStop()
   def test(init: Int = 1, codes: Seq[Int]): Int = new IntCodeReader(codes).test(init)
 
@@ -14,6 +20,22 @@ object IntCodeReader {
     val modes = s.dropRight(2)
     val padded: String = ("0" * (l - modes.length)) ++ modes
     padded.map(_ == '1').reverse
+  }
+
+  def amplify(inits: Seq[Int], codes: Seq[Int]): Int = {
+    val reader = new IntCodeReader(codes)
+    reader.readToStopRec(State(m.Queue(inits: _*), Some(0))).inputs.dequeue()
+  }
+
+  def amplifySequence(inits: Seq[Int], codes: Seq[Int]): Int = {
+    inits.foldLeft(0) { case (nextInput, phase) =>
+        amplify(Seq(phase, nextInput), codes)
+    }
+  }
+
+  def maxAmplificationSequence(inits: Seq[Int], codes: Seq[Int]): (Seq[Int], Int) = inits.permutations.foldLeft((Seq(0), 0)) { case ((inits, thrust), p) =>
+      val thrust2 = amplifySequence(p, codes)
+      if (thrust2 > thrust) (p, thrust2) else (inits, thrust)
   }
 }
 
@@ -28,7 +50,7 @@ class IntCodeReader(rawCodes: Seq[Int]) {
   }
 
   def test(init: Int = 1): Int = {
-    readToStopRec(State(init)).input
+    readToStopRec(State(init)).inputs.dequeue()
   }
 
   @tailrec
@@ -43,23 +65,25 @@ class IntCodeReader(rawCodes: Seq[Int]) {
     intCode(start).toString match {
       case o if o.endsWith("1")  =>
         opCode1(start, readImmediateModes(o, 2))
-        State(state.input, Some(start + 4))
+        state.withPlace(Some(start + 4))
       case o if o.endsWith("2")  =>
         opCode2(start, readImmediateModes(o, 2))
-        State(state.input, Some(start + 4))
-      case o if o.endsWith("3")  => opCode3(start + 1, readImmediateModes(o, 1))(state.input)
-        State(state.input, Some(start + 2))
+        state.withPlace(Some(start + 4))
+      case o if o.endsWith("3")  =>
+        opCode3(start + 1, readImmediateModes(o, 1))(state.inputs.dequeue())
+        state.withPlace(Some(start + 2))
       case o if o.endsWith("4")  =>
-        State(opCode4(start + 1, readImmediateModes(o, 1).head), Some(start + 2))
+        state.inputs.enqueue(opCode4(start + 1, readImmediateModes(o, 1).head))
+        state.withPlace(Some(start + 2))
       case o if o.endsWith("5") =>
-          state.copy(place = Some(opCode5(start + 1, readImmediateModes(o, 2))))
+          state.withPlace(Some(opCode5(start + 1, readImmediateModes(o, 2))))
       case o if o.endsWith("6") =>
-        state.copy(place = Some(opCode6(start + 1, readImmediateModes(o, 2))))
+        state.withPlace(Some(opCode6(start + 1, readImmediateModes(o, 2))))
       case o if o.endsWith("7") => opCode7(start, readImmediateModes(o, 2))
-        state.copy(place = Some(start + 4))
+        state.withPlace(Some(start + 4))
       case o if o.endsWith("8") => opCode8(start, readImmediateModes(o, 2))
-        state.copy(place = Some(start + 4))
-      case o if o.endsWith("99")  => State(state.input, None)
+        state.withPlace( Some(start + 4))
+      case o if o.endsWith("99")  => state.withPlace(None)
       case e  => throw new IllegalStateException(s"illegal ops code oh no! ($e at $start)")
     }
   }
