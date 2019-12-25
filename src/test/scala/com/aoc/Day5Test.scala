@@ -4,7 +4,7 @@ import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 import scala.io.Source
 
-class Day5Test extends AnyFunSpec with Matchers with Utils {
+class Day5Test extends AnyFunSpec with Matchers {
   import IntCodeReader._
   describe("part 1") {
     it("some basics") {
