@@ -23,11 +23,11 @@ class Day6Test extends AnyFunSpec with Matchers {
     it("passes basic test") {
       val sample = Seq("COM)B","B)C","C)D","D)E","E)F","B)G","G)H","D)I","E)J","J)K","K)L","K)YOU","I)SAN")
       val o = new Orbits(sample)
-      o.calcPathToSanta("YOU") should be (Some(4))
+      o.calcPathToSanta("YOU") shouldBe 4
     }
 
     it("answer") {
-      new Orbits(source.getLines().toSeq).calcPathToSanta() shouldBe Some(5)
+      new Orbits(source.getLines().toSeq).calcPathToSanta() shouldBe 484
     }
   }
 }
